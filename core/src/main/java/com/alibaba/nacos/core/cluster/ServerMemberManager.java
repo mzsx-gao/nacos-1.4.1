@@ -118,6 +118,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     
     /**
      * Broadcast this node element information task.
+     * 在Nacos-Server启动成功后，会定时给除自己之外的其他Member进行通信，检测其他节点是否还存活
      */
     private final MemberInfoReportTask infoReportTask = new MemberInfoReportTask();
     
@@ -376,11 +377,15 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     public boolean isFirstIp() {
         return Objects.equals(serverList.firstKey(), this.localAddress);
     }
-    
+
+    /**
+     * tomcat启动完成回调这个方法
+     */
     @Override
     public void onApplicationEvent(WebServerInitializedEvent event) {
         getSelf().setState(NodeState.UP);
         if (!EnvUtil.getStandaloneMode()) {
+            //定时执行ServerMemberManager#MemberInfoReportTask
             GlobalExecutor.scheduleByCommon(this.infoReportTask, 5_000L);
         }
         EnvUtil.setPort(event.getWebServer().getPort());
@@ -430,7 +435,12 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     
     // Synchronize the metadata information of a node
     // A health check of the target node is also attached
-    
+
+    /**
+     * 在Nacos-Server启动成功后，会定时给除自己之外的其他Member进行通信，检测其他节点是否还存活。
+     * 如果通信失败，会将该Member状态置为不健康的，如果后续和该节点重新通信成功，会将该节点的状态置为健康，
+     * 该Task与Responser(distroMapper选择节点)的计算密切相关
+     */
     class MemberInfoReportTask extends Task {
         
         private final GenericType<RestResult<String>> reference = new GenericType<RestResult<String>>() {
@@ -500,6 +510,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
         
         @Override
         protected void after() {
+            //每2秒执行一次定时任务
             GlobalExecutor.scheduleByCommon(this, 2_000L);
         }
     }

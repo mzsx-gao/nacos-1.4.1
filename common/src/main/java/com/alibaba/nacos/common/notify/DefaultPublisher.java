@@ -114,6 +114,7 @@ public class DefaultPublisher extends Thread implements EventPublisher {
                     break;
                 }
                 final Event event = queue.take();
+                //处理事件
                 receiveEvent(event);
                 UPDATER.compareAndSet(this, lastEventSequence, Math.max(lastEventSequence, event.sequence()));
             }
@@ -135,10 +136,12 @@ public class DefaultPublisher extends Thread implements EventPublisher {
     public void removeSubscriber(Subscriber subscriber) {
         subscribers.remove(subscriber);
     }
-    
+
+    //发布事件
     @Override
     public boolean publish(Event event) {
         checkIsStart();
+        //将事件放到阻塞队列，在上面的run方法里消费
         boolean success = this.queue.offer(event);
         if (!success) {
             LOGGER.warn("Unable to plug in due to interruption, synchronize sending time, event : {}", event);
@@ -173,6 +176,7 @@ public class DefaultPublisher extends Thread implements EventPublisher {
         final long currentEventSequence = event.sequence();
         
         // Notification single event listener
+        // 通知订阅者，AsyncNotifyService里就有一个订阅者，订阅ConfigDataChangeEvent事件
         for (Subscriber subscriber : subscribers) {
             // Whether to ignore expiration events
             if (subscriber.ignoreExpireEvent() && lastEventSequence > currentEventSequence) {

@@ -252,7 +252,7 @@ public class ClientWorker implements Closeable {
         }
         return cacheMap.get(GroupKey.getKeyTenant(dataId, group, tenant));
     }
-    
+    //获取远程配置
     public String[] getServerConfig(String dataId, String group, String tenant, long readTimeout)
             throws NacosException {
         String[] ct = new String[2];
@@ -282,6 +282,7 @@ public class ClientWorker implements Closeable {
         
         switch (result.getCode()) {
             case HttpURLConnection.HTTP_OK:
+                //本地保存快照文件
                 LocalConfigInfoProcessor.saveSnapshot(agent.getName(), dataId, group, tenant, result.getData());
                 ct[0] = result.getData();
                 if (result.getHeader().getValue(CONFIG_TYPE) != null) {
@@ -361,7 +362,7 @@ public class ClientWorker implements Closeable {
     }
     
     /**
-     * Check config info.
+     * cacheMap中缓存着需要刷新的配置，将cacheMap中的数量以3000分一个组，分别创建一个LongPollingRunnable来监听配置更新
      */
     public void checkConfigInfo() {
         // Dispatch taskes.
@@ -409,8 +410,7 @@ public class ClientWorker implements Closeable {
     }
     
     /**
-     * Fetch the updated dataId list from server.
-     *
+     * 向nacos-server发出一个长连接（30秒超时），返回nacos server有更新过的dataIds
      * @param probeUpdateString       updated attribute string value.
      * @param isInitializingCacheList initial cache lists.
      * @return The updated dataId list(ps: it maybe null).
@@ -437,6 +437,7 @@ public class ClientWorker implements Closeable {
             // increase the client's read timeout to avoid this problem.
             
             long readTimeoutMs = timeout + (long) Math.round(timeout >> 1);
+            //请求服务端地址：/nacos/v1/cs/configs/listener
             HttpRestResult<String> result = agent
                     .httpPost(Constants.CONFIG_CONTROLLER_PATH + "/listener", headers, params, agent.getEncode(),
                             readTimeoutMs);
@@ -529,7 +530,7 @@ public class ClientWorker implements Closeable {
                         return t;
                     }
                 });
-        
+        //每10毫秒执行一次定时任务
         this.executor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
@@ -570,7 +571,8 @@ public class ClientWorker implements Closeable {
         public LongPollingRunnable(int taskId) {
             this.taskId = taskId;
         }
-        
+
+        //监听配置更新
         @Override
         public void run() {
             
@@ -592,7 +594,7 @@ public class ClientWorker implements Closeable {
                     }
                 }
                 
-                // check server config
+                // 向nacos-server发出一个长连接（30秒超时），返回nacos server有更新过的dataIds
                 List<String> changedGroupKeys = checkUpdateDataIds(cacheDatas, inInitializingCacheList);
                 if (!CollectionUtils.isEmpty(changedGroupKeys)) {
                     LOGGER.info("get changedGroupKeys:" + changedGroupKeys);
@@ -607,6 +609,7 @@ public class ClientWorker implements Closeable {
                         tenant = key[2];
                     }
                     try {
+                        //根据变化的dataId调用nacos server获取配置信息，并更新本地快照
                         String[] ct = getServerConfig(dataId, group, tenant, 3000L);
                         CacheData cache = cacheMap.get(GroupKey.getKeyTenant(dataId, group, tenant));
                         cache.setContent(ct[0]);
@@ -626,12 +629,13 @@ public class ClientWorker implements Closeable {
                 for (CacheData cacheData : cacheDatas) {
                     if (!cacheData.isInitializing() || inInitializingCacheList
                             .contains(GroupKey.getKeyTenant(cacheData.dataId, cacheData.group, cacheData.tenant))) {
+                        //对有变化的配置调用对应的监听器去处理
                         cacheData.checkListenerMd5();
                         cacheData.setInitializing(false);
                     }
                 }
                 inInitializingCacheList.clear();
-                
+                //继续轮询
                 executorService.execute(this);
                 
             } catch (Throwable e) {

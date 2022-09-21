@@ -31,7 +31,7 @@ public class ConfigFactory {
     
     /**
      * Create Config.
-     *
+     * 创建ConfigService
      * @param properties init param
      * @return ConfigService
      * @throws NacosException Exception

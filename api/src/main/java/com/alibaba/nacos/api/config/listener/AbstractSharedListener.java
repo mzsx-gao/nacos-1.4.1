@@ -20,6 +20,7 @@ import java.util.concurrent.Executor;
 
 /**
  * Shared Listener.
+ * NacosContextRefresher中会注册一个该类的子类用来监听配置中心配置的改变
  *
  * @author Nacos
  */

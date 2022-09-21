@@ -82,7 +82,8 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
     private final DistroProtocol distroProtocol;
     
     private volatile Notifier notifier = new Notifier();
-    
+
+    //ServiceManager的putServiceAndInit方法会加入监听器
     private Map<String, ConcurrentLinkedQueue<RecordListener>> listeners = new ConcurrentHashMap<>();
     
     private Map<String, String> syncChecksumTasks = new ConcurrentHashMap<>(16);
@@ -104,7 +105,9 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
     
     @Override
     public void put(String key, Record value) throws NacosException {
+        //将注册实例更新到内存注册表
         onPut(key, value);
+        //同步实例信息到nacos集群其它节点
         distroProtocol.sync(new DistroKey(key, KeyBuilder.INSTANCE_LIST_KEY_PREFIX), DataOperation.CHANGE,
                 globalConfig.getTaskDispatchPeriod() / 2);
     }
@@ -122,7 +125,7 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
     
     /**
      * Put a new record.
-     *
+     * 注册新实例
      * @param key   key of record
      * @param value record
      */
@@ -139,7 +142,7 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
         if (!listeners.containsKey(key)) {
             return;
         }
-        
+        //将注册实例任务放到阻塞队列中
         notifier.addTask(key, DataOperation.CHANGE);
     }
     
@@ -374,27 +377,31 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
             if (action == DataOperation.CHANGE) {
                 services.put(datumKey, StringUtils.EMPTY);
             }
+            //往阻塞队列tasks里放入注册实例数据
             tasks.offer(Pair.with(datumKey, action));
         }
         
         public int getTaskSize() {
             return tasks.size();
         }
-        
+
+        //在上面的初始化方法init()中触发任务执行
         @Override
         public void run() {
             Loggers.DISTRO.info("distro notifier started");
-            
+            //循环从阻塞队列tasks中拿实例数据进行处理
             for (; ; ) {
                 try {
                     Pair<String, DataOperation> pair = tasks.take();
+                    //处理注册实例数据
                     handle(pair);
                 } catch (Throwable e) {
                     Loggers.DISTRO.error("[NACOS-DISTRO] Error while handling notifying task", e);
                 }
             }
         }
-        
+
+        //处理注册实例数据
         private void handle(Pair<String, DataOperation> pair) {
             try {
                 String datumKey = pair.getValue0();
@@ -411,9 +418,9 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
                 for (RecordListener listener : listeners.get(datumKey)) {
                     
                     count++;
-                    
                     try {
                         if (action == DataOperation.CHANGE) {
+                            //listener就是Service实例，将注册实例信息更新到注册表内存结构中
                             listener.onChange(datumKey, dataStore.get(datumKey).value);
                             continue;
                         }

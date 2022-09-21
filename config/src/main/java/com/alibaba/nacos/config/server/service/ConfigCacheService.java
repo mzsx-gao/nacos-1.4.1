@@ -66,7 +66,7 @@ public class ConfigCacheService {
     
     /**
      * Save config file and update md5 value in cache.
-     *
+     * 写入磁盘,并发布LocalDataChangeEvent事件
      * @param dataId         dataId string value.
      * @param group          group string value.
      * @param tenant         tenant string value.
@@ -96,8 +96,9 @@ public class ConfigCacheService {
                                 + "lastModifiedNew={}", groupKey, md5, ConfigCacheService.getLastModifiedTs(groupKey),
                         lastModifiedTs);
             } else if (!PropertyUtil.isDirectRead()) {
-                DiskUtil.saveToDisk(dataId, group, tenant, content);//写去磁盘
+                DiskUtil.saveToDisk(dataId, group, tenant, content);//写入磁盘
             }
+            //更新缓存信息的md5,并发布LocalDataChangeEvent事件
             updateMd5(groupKey, md5, lastModifiedTs);
             return true;
         } catch (IOException ioe) {

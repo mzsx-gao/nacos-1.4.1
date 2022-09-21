@@ -56,7 +56,14 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 public class AsyncNotifyService {
-    
+
+    /**
+     * 服务端配置发生变化时处理流程分为两步：
+     * 1.入库：插入mysql数据库，发起ConfigDataChangeEvent事件
+     * 2.AsyncNotifyService里有个订阅者会监听ConfigDataChangeEvent事件，然后调用所有server上的/dataChange接口
+     *   server响应/dataChange请求，异步dump数据库配置信息到本地，并发布LocalDataChangeEvent
+     *   LongPollingService里有一个订阅者，监听LocalDataChangeEvent事件,响应LocalDataChangeEvent事件时会通知到客户端配置变化情况
+     */
     @Autowired
     public AsyncNotifyService(ServerMemberManager memberManager) {
         this.memberManager = memberManager;
@@ -80,11 +87,11 @@ public class AsyncNotifyService {
                     Collection<Member> ipList = memberManager.allMembers();
                     
                     // In fact, any type of queue here can be
-                    Queue<NotifySingleTask> queue = new LinkedList<NotifySingleTask>();
+                    Queue<NotifySingleTask> queue = new LinkedList<>();
                     for (Member member : ipList) {
-                        queue.add(new NotifySingleTask(dataId, group, tenant, tag, dumpTs, member.getAddress(),
-                                evt.isBeta));
+                        queue.add(new NotifySingleTask(dataId, group, tenant, tag, dumpTs, member.getAddress(), evt.isBeta));
                     }
+                    //集群其它节点同步配置
                     ConfigExecutor.executeAsyncNotify(new AsyncTask(nacosAsyncRestTemplate, queue));
                 }
             }
@@ -117,7 +124,11 @@ public class AsyncNotifyService {
         public void run() {
             executeAsyncInvoke();
         }
-        
+
+        /**
+         * 该方法会不断从queue取出NotifySingleTask，然后判断目标ip是否健康
+         * 不健康则延迟再次执行该task；如果是健康的话则使用httpclient向目标地址发送get请求，然后注册AsyncNotifyCallBack
+         */
         private void executeAsyncInvoke() {
             while (!queue.isEmpty()) {
                 NotifySingleTask task = queue.poll();
@@ -140,6 +151,7 @@ public class AsyncNotifyService {
                             header.addParam("isBeta", "true");
                         }
                         AuthHeaderUtil.addIdentityToHeader(header);
+                        //调用所有server上的/dataChange接口
                         restTemplate.get(task.url, header, Query.EMPTY, String.class, new AsyncNotifyCallBack(task));
                     }
                 }
@@ -154,7 +166,11 @@ public class AsyncNotifyService {
         AsyncTask asyncTask = new AsyncTask(nacosAsyncRestTemplate, queue);
         ConfigExecutor.scheduleAsyncNotify(asyncTask, delay, TimeUnit.MILLISECONDS);
     }
-    
+
+    /**
+     * AsyncNotifyCallBack实现了FutureCallback接口，其completed方法判断请求是否是HttpStatus.SC_OK，不是的话会再次延迟调度该任务；
+     * 其failed、cancelled方法也是会再次延时调度该任务
+     */
     class AsyncNotifyCallBack implements Callback<String> {
     
         private NotifySingleTask task;

@@ -62,7 +62,8 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
     
     @JsonIgnore
     private Set<Instance> persistentInstances = new HashSet<>();
-    
+
+    //服务发现查找临时实例最终从内存里找到的就是这个属性
     @JsonIgnore
     private Set<Instance> ephemeralInstances = new HashSet<>();
     
@@ -231,6 +232,9 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
     
     /**
      * Update instance list.
+     * 将临时的注册实例更新到了cluster的ephemeralInstances属性上去，服务发现查找临时实例最终从内存里找到的就是这个属性
+     * nacos这个更新注册表内存方法里，为了防止读写并发冲突，大量的运用了CopyOnWrite思想防止并发读写冲突，具体做法就是把
+     * 原内存结构复制一份，操作完以后再替换回真正的注册表内存里去
      *
      * @param ips       instance list
      * @param ephemeral whether these instances are ephemeral

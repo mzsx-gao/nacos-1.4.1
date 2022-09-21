@@ -130,7 +130,8 @@ public abstract class DumpService {
      * @throws Throwable throws Exception when actually operate.
      */
     protected abstract void init() throws Throwable;
-    
+
+    //nacos启动的时候将mysql里的配置信息dump到磁盘上
     protected void dumpOperate(DumpProcessor processor, DumpAllProcessor dumpAllProcessor,
             DumpAllBetaProcessor dumpAllBetaProcessor, DumpAllTagProcessor dumpAllTagProcessor) throws NacosException {
         String dumpFileContext = "CONFIG_DUMP_TO_FILE";
@@ -353,6 +354,7 @@ public abstract class DumpService {
     public void dump(String dataId, String group, String tenant, String tag, long lastModified, String handleIp,
             boolean isBeta) {
         String groupKey = GroupKey2.getKey(dataId, group, tenant);
+        //最终调用ConfigCacheService#dump来处理
         dumpTaskMgr.addTask(groupKey, new DumpTask(groupKey, tag, lastModified, handleIp, isBeta));
     }
     

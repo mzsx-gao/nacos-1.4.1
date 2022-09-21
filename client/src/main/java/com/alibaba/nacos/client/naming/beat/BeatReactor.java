@@ -73,6 +73,7 @@ public class BeatReactor implements Closeable {
     
     /**
      * Add beat information.
+     * 启动心跳任务
      *
      * @param serviceName service name
      * @param beatInfo    beat information
@@ -148,7 +149,8 @@ public class BeatReactor implements Closeable {
         ThreadUtils.shutdownThreadPool(executorService, NAMING_LOGGER);
         NAMING_LOGGER.info("{} do shutdown stop", className);
     }
-    
+
+    //心跳任务
     class BeatTask implements Runnable {
         
         BeatInfo beatInfo;
@@ -164,6 +166,7 @@ public class BeatReactor implements Closeable {
             }
             long nextTime = beatInfo.getPeriod();
             try {
+                //调用Nacos服务器发送心跳请求
                 JsonNode result = serverProxy.sendBeat(beatInfo, BeatReactor.this.lightBeatEnabled);
                 long interval = result.get("clientBeatInterval").asLong();
                 boolean lightBeatEnabled = false;

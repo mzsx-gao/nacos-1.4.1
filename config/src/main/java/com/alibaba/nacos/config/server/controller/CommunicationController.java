@@ -56,7 +56,8 @@ public class CommunicationController {
     
     /**
      * Notify the change of config information.
-     *
+     * 异步dump数据库配置信息到本地，并发布LocalDataChangeEvent,而LongPollingService里有一个订阅者，
+     * 监听LocalDataChangeEvent事件,响应LocalDataChangeEvent事件时会通知到客户端配置变化情况
      */
     @GetMapping("/dataChange")
     public Boolean notifyConfigInfo(HttpServletRequest request, @RequestParam("dataId") String dataId,

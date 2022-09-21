@@ -43,7 +43,8 @@ public class ExternalDumpService extends DumpService {
     public ExternalDumpService(PersistService persistService, ServerMemberManager memberManager) {
         super(persistService, memberManager);
     }
-    
+
+    //项目启动的时候将mysql中的配置信息dump到磁盘上
     @PostConstruct
     @Override
     protected void init() throws Throwable {

@@ -82,6 +82,7 @@ public class ServiceManager implements RecordListener<Service> {
     
     /**
      * Map(namespace, Map(group::serviceName, Service)).
+     * nacos注册表
      */
     private final Map<String, Map<String, Service>> serviceMap = new ConcurrentHashMap<>();
     
@@ -131,6 +132,7 @@ public class ServiceManager implements RecordListener<Service> {
      */
     @PostConstruct
     public void init() {
+        //注册服务实例信息在集群节点间同步任务
         GlobalExecutor.scheduleServiceReporter(new ServiceReporter(), 60000, TimeUnit.MILLISECONDS);
         
         GlobalExecutor.submitServiceUpdateManager(new UpdatedServiceProcessor());
@@ -480,7 +482,9 @@ public class ServiceManager implements RecordListener<Service> {
                 service.getClusterMap().put(cluster.getName(), cluster);
             }
             service.validate();
-            
+            //1.创建内存注册表结构--Map(namespace, Map(group@@serviceName, Service))
+            //"DEFAULT_GROUP@@mall-order" -> "Service{name='DEFAULT_GROUP@@mall-order', protectThreshold=0.0, appName='null', groupName='DEFAULT_GROUP', metadata={}}"
+            //2.内部会执行定时任务clientBeatCheckTask，延时5秒后每5秒钟执行一次
             putServiceAndInit(service);
             if (!local) {
                 addOrReplaceService(service);
@@ -499,7 +503,8 @@ public class ServiceManager implements RecordListener<Service> {
      * @throws Exception any error occurred in the process
      */
     public void registerInstance(String namespaceId, String serviceName, Instance instance) throws NacosException {
-        
+        //在注册表内存结构中注册一个空Service,说白了就是这个Service内部的clusterMap还没有值
+        //内部还会开启定时任务clientBeatCheckTask进行健康检查
         createEmptyService(namespaceId, serviceName, instance.isEphemeral());
         
         Service service = getService(namespaceId, serviceName);
@@ -508,7 +513,7 @@ public class ServiceManager implements RecordListener<Service> {
             throw new NacosException(NacosException.INVALID_PARAM,
                     "service not found, namespace: " + namespaceId + ", service: " + serviceName);
         }
-        
+        //将新注册的实例加入对应服务service的实例列表中去，其实就是把新注册的实例加入到上面那个空Service的clusterMap中
         addInstance(namespaceId, serviceName, instance.isEphemeral(), instance);
     }
     
@@ -650,11 +655,12 @@ public class ServiceManager implements RecordListener<Service> {
         Service service = getService(namespaceId, serviceName);
         
         synchronized (service) {
+            //得到最新的实例列表
             List<Instance> instanceList = addIpAddresses(service, ephemeral, ips);
             
             Instances instances = new Instances();
             instances.setInstanceList(instanceList);
-            
+            //将service对应的全景实例instances写入内存注册表
             consistencyService.put(key, instances);
         }
     }
@@ -882,8 +888,13 @@ public class ServiceManager implements RecordListener<Service> {
     }
     
     private void putServiceAndInit(Service service) throws NacosException {
+
+        //创建内存注册表结构--Map(namespace, Map(group::serviceName, Service))
         putService(service);
+        //内部会执行定时任务clientBeatCheckTask做健康检查，延时5秒后每5秒钟执行一次
         service.init();
+        // 这里是把service（实现RecordListener）放进DistroConsistencyServiceImpl的listeners属性中，
+        // 后面更新注册实例的注册表信息时会调用其onChange()方法
         consistencyService
                 .listen(KeyBuilder.buildInstanceListKey(service.getNamespaceId(), service.getName(), true), service);
         consistencyService
@@ -1101,6 +1112,7 @@ public class ServiceManager implements RecordListener<Service> {
                     ServiceChecksum checksum = new ServiceChecksum(namespaceId);
                     
                     for (String serviceName : allServiceNames.get(namespaceId)) {
+                        //同步的发起机器就是做健康检查任务的那台机器
                         if (!distroMapper.responsible(serviceName)) {
                             continue;
                         }

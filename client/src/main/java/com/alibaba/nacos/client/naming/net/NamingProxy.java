@@ -219,6 +219,7 @@ public class NamingProxy implements Closeable {
     
     /**
      * register a instance to service with specified instance properties.
+     * 给nacos服务器发请求注册服务
      *
      * @param serviceName name of service
      * @param groupName   group of service

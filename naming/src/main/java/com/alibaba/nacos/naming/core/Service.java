@@ -194,7 +194,7 @@ public class Service extends com.alibaba.nacos.api.naming.pojo.Service implement
                 instance.setWeight(0.01D);
             }
         }
-        
+        //将注册实例信息更新到注册表内存结构中,并且通知客户端服务变动事件
         updateIPs(value.getInstanceList(), KeyBuilder.matchEphemeralInstanceListKey(key));
         
         recalculateChecksum();
@@ -227,6 +227,7 @@ public class Service extends com.alibaba.nacos.api.naming.pojo.Service implement
     
     /**
      * Update instances.
+     * 将注册实例信息更新到注册表内存结构中
      *
      * @param instances instances
      * @param ephemeral whether is ephemeral instance
@@ -272,10 +273,12 @@ public class Service extends com.alibaba.nacos.api.naming.pojo.Service implement
         for (Map.Entry<String, List<Instance>> entry : ipMap.entrySet()) {
             //make every ip mine
             List<Instance> entryIPs = entry.getValue();
+            //将临时的注册实例更新到了cluster的ephemeralInstances属性上去，服务发现查找临时实例最终从内存里找到的就是这个属性
             clusterMap.get(entry.getKey()).updateIps(entryIPs, ephemeral);
         }
         
         setLastModifiedMillis(System.currentTimeMillis());
+        //发布服务变化事件,udp方式将服务变动通知给订阅的客户端
         getPushService().serviceChanged(this);
         StringBuilder stringBuilder = new StringBuilder();
         
@@ -292,6 +295,7 @@ public class Service extends com.alibaba.nacos.api.naming.pojo.Service implement
      * Init service.
      */
     public void init() {
+        //定时执行任务clientBeatCheckTask，延时5秒后每5秒钟执行一次
         HealthCheckReactor.scheduleCheck(clientBeatCheckTask);
         for (Map.Entry<String, Cluster> entry : clusterMap.entrySet()) {
             entry.getValue().setService(this);

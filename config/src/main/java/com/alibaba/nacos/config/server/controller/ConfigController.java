@@ -164,6 +164,7 @@ public class ConfigController {
         configInfo.setType(type);
         if (StringUtils.isBlank(betaIps)) {
             if (StringUtils.isBlank(tag)) {
+                //更新或保存配置信息到mysql
                 persistService.insertOrUpdate(srcIp, srcUser, configInfo, time, configAdvanceInfo, true);
                 //发布ConfigDataChangeEvent事件
                 ConfigChangePublisher
@@ -187,7 +188,7 @@ public class ConfigController {
     
     /**
      * Get configure board infomation fail.
-     *
+     * 获取配置接口
      * @throws ServletException ServletException.
      * @throws IOException      IOException.
      * @throws NacosException   NacosException.
@@ -302,6 +303,7 @@ public class ConfigController {
     
     /**
      * The client listens for configuration changes.
+     * 客户端监听配置改变
      */
     @PostMapping("/listener")
     @Secured(action = ActionTypes.READ, parser = ConfigResourceParser.class)
@@ -323,6 +325,7 @@ public class ConfigController {
         }
         
         // do long-polling
+        // 轮询接口，长连接处理
         inner.doPollingConfig(request, response, clientMd5Map, probeModify.length());
     }
     

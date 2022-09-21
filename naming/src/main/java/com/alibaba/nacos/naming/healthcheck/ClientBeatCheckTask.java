@@ -72,10 +72,18 @@ public class ClientBeatCheckTask implements Runnable {
     public String taskKey() {
         return KeyBuilder.buildServiceMetaKey(service.getNamespaceId(), service.getName());
     }
-    
+
+    /**
+     * 健康检查：
+     * 1.如果某个实例超过15秒没有收到心跳，则将它的healthy设置为false
+     * 2.如果某个实例超过30秒没有收到心跳，直接剔除该示例
+     */
     @Override
     public void run() {
         try {
+            /**
+             * 判断集群模式下数据在哪个节点处理，就是说集群模式下只有一个节点执行该任务，并且如果状态改变,同步给其他服务
+             */
             if (!getDistroMapper().responsible(service.getName())) {
                 return;
             }
@@ -91,6 +99,7 @@ public class ClientBeatCheckTask implements Runnable {
                 if (System.currentTimeMillis() - instance.getLastBeat() > instance.getInstanceHeartBeatTimeOut()) {
                     if (!instance.isMarked()) {
                         if (instance.isHealthy()) {
+                            //如果某个实例超过15秒没有收到心跳，则将它的healthy设置为false
                             instance.setHealthy(false);
                             Loggers.EVT_LOG
                                     .info("{POS} {IP-DISABLED} valid: {}:{}@{}@{}, region: {}, msg: client timeout after {}, last beat: {}",
@@ -114,11 +123,12 @@ public class ClientBeatCheckTask implements Runnable {
                 if (instance.isMarked()) {
                     continue;
                 }
-                
+                //如果某个实例超过30秒没有收到心跳，直接剔除该示例
                 if (System.currentTimeMillis() - instance.getLastBeat() > instance.getIpDeleteTimeout()) {
                     // delete instance
                     Loggers.SRV_LOG.info("[AUTO-DELETE-IP] service: {}, ip: {}", service.getName(),
                             JacksonUtils.toJson(instance));
+                    //调用server的实例注销接口
                     deleteIp(instance);
                 }
             }

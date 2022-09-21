@@ -32,7 +32,13 @@ import java.util.Map;
  * @deprecated 1.3.0 This object will be deleted sometime after version 1.3.0
  */
 public class ServerStatusSynchronizer implements Synchronizer {
-    
+
+    /**
+     * 告诉其它机器我还活着，如果集群其它节点没有收到这个机器的同步请求，则会更新集群节点状态，
+     * 这个会影响心跳任务机器选择的计算
+     * @param serverIP target server address
+     * @param msg      message to send
+     */
     @Override
     public void send(final String serverIP, Message msg) {
         if (StringUtils.isEmpty(serverIP)) {

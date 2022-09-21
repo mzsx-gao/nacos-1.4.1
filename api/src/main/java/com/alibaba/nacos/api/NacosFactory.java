@@ -35,7 +35,7 @@ public class NacosFactory {
     
     /**
      * Create config service.
-     * 获取配置中心服务,连接nacos服务器
+     * 获取配置中心服务,会连接nacos服务器
      *
      * @param properties init param
      * @return config
@@ -69,6 +69,7 @@ public class NacosFactory {
     
     /**
      * Create naming service.
+     * 创建NamingService
      *
      * @param properties init param
      * @return Naming

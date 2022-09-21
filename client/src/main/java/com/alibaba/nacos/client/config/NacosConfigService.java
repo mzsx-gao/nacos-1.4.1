@@ -82,9 +82,10 @@ public class NacosConfigService implements ConfigService {
             this.encode = encodeTmp.trim();
         }
         initNamespace(properties);
-        
+        //用来向nacos服务端发起请求的代理
         this.agent = new MetricsHttpAgent(new ServerHttpAgent(properties));
         this.agent.start();
+        //客户端工作类
         this.worker = new ClientWorker(this.agent, this.configFilterChainManager, properties);
     }
     
@@ -152,6 +153,7 @@ public class NacosConfigService implements ConfigService {
         }
         
         try {
+            //获取远程配置中心的配置
             String[] ct = worker.getServerConfig(dataId, group, tenant, timeoutMs);
             cr.setContent(ct[0]);
             

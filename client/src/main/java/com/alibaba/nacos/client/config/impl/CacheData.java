@@ -207,6 +207,7 @@ public class CacheData {
                     cr.setContent(content);
                     configFilterChainManager.doFilter(null, cr);
                     String contentTmp = cr.getContent();
+                    //回调监听器的receiveConfigInfo方法，比如NacosContextRefresher
                     listener.receiveConfigInfo(contentTmp);
                     
                     // compare lastContent and content

@@ -304,7 +304,7 @@ public class HostReactor implements Closeable {
         if (failoverReactor.isFailoverSwitch()) {
             return failoverReactor.getService(key);
         }
-        
+        //获取客户端的服务实例缓存信息
         ServiceInfo serviceObj = getServiceInfo0(serviceName, clusters);
         
         if (null == serviceObj) {
@@ -313,6 +313,7 @@ public class HostReactor implements Closeable {
             serviceInfoMap.put(serviceObj.getKey(), serviceObj);
             
             updatingMap.put(serviceName, new Object());
+            //调用server接口获取最新服务数据，并加入到缓存中
             updateServiceNow(serviceName, clusters);
             updatingMap.remove(serviceName);
             
@@ -330,7 +331,7 @@ public class HostReactor implements Closeable {
                 }
             }
         }
-        
+        //定时任务，定时更新客户端的服务缓存
         scheduleUpdateIfAbsent(serviceName, clusters);
         
         return serviceInfoMap.get(serviceObj.getKey());
@@ -374,7 +375,7 @@ public class HostReactor implements Closeable {
     public void updateService(String serviceName, String clusters) throws NacosException {
         ServiceInfo oldService = getServiceInfo0(serviceName, clusters);
         try {
-            
+            //这里给服务端传递的这个udp端口就是为了当服务端服务实例有变动后会给客户端发udp请求通知客户端服务变动信息
             String result = serverProxy.queryList(serviceName, clusters, pushReceiver.getUdpPort(), false);
             
             if (StringUtils.isNotEmpty(result)) {

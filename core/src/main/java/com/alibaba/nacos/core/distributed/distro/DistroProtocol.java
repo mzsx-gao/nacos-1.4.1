@@ -108,7 +108,7 @@ public class DistroProtocol {
     
     /**
      * Start to sync data to all remote server.
-     *
+     * 同步实例信息到nacos集群其它节点
      * @param distroKey distro key of sync data
      * @param action    the action of data operation
      */

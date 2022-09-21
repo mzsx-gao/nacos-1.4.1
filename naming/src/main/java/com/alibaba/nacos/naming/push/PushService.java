@@ -115,7 +115,11 @@ public class PushService implements ApplicationContextAware, ApplicationListener
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
     }
-    
+
+    /**
+     * udp方式将服务变动通知给订阅的客户端，这里订阅的客户端信息在clientMap中，而clientMap的信息是客户端
+     * 请求服务端获取服务列表时，服务端把客户端信息（会有一个udp端口）保存在clientMap中
+     */
     @Override
     public void onApplicationEvent(ServiceChangeEvent event) {
         Service service = event.getService();
@@ -166,7 +170,7 @@ public class PushService implements ApplicationContextAware, ApplicationListener
                     Loggers.PUSH.info("serviceName: {} changed, schedule push for: {}, agent: {}, key: {}",
                             client.getServiceName(), client.getAddrStr(), client.getAgent(),
                             (ackEntry == null ? null : ackEntry.key));
-                    
+                    //udp方式将服务变动通知给订阅的客户端
                     udpPush(ackEntry);
                 }
             } catch (Exception e) {
@@ -367,6 +371,7 @@ public class PushService implements ApplicationContextAware, ApplicationListener
     
     /**
      * Service changed.
+     * 发布服务变化事件
      *
      * @param service service
      */
@@ -589,7 +594,8 @@ public class PushService implements ApplicationContextAware, ApplicationListener
         
         return cmd;
     }
-    
+
+    //udp方式将服务变动通知给订阅的客户端
     private static Receiver.AckEntry udpPush(Receiver.AckEntry ackEntry) {
         if (ackEntry == null) {
             Loggers.PUSH.error("[NACOS-PUSH] ackEntry is null.");

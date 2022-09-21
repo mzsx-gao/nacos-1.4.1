@@ -114,6 +114,7 @@ public class InstanceController {
     
     /**
      * Register new instance.
+     * 注册实例
      *
      * @param request http request
      * @return 'ok' if success
@@ -364,7 +365,7 @@ public class InstanceController {
     
     /**
      * Get all instance of input service.
-     *
+     * 服务发现
      * @param request http request
      * @return list of instance
      * @throws Exception any error during list
@@ -446,6 +447,7 @@ public class InstanceController {
     
     /**
      * Create a beat for instance.
+     * 接收心跳请求
      *
      * @param request http request
      * @return detail information of instance
@@ -483,7 +485,10 @@ public class InstanceController {
         NamingUtils.checkServiceNameFormat(serviceName);
         Loggers.SRV_LOG.debug("[CLIENT-BEAT] full arguments: beat: {}, serviceName: {}", clientBeat, serviceName);
         Instance instance = serviceManager.getInstance(namespaceId, serviceName, clusterName, ip, port);
-        
+
+        /**
+         * 如果实例不存在重新注册（如网络不通导致实例在服务端被下限或服务端重启临时实例丢失）
+         */
         if (instance == null) {
             if (clientBeat == null) {
                 result.put(CommonParams.CODE, NamingResponseCode.RESOURCE_NOT_FOUND);
@@ -518,6 +523,7 @@ public class InstanceController {
             clientBeat.setPort(port);
             clientBeat.setCluster(clusterName);
         }
+        //立即开启一个任务ClientBeatProcessor，更新客户端实例的最后心跳时间
         service.processClientBeat(clientBeat);
         
         result.put(CommonParams.CODE, NamingResponseCode.OK);
@@ -658,16 +664,17 @@ public class InstanceController {
         
         ClientInfo clientInfo = new ClientInfo(agent);
         ObjectNode result = JacksonUtils.createEmptyJsonNode();
+        //获取服务
         Service service = serviceManager.getService(namespaceId, serviceName);
         long cacheMillis = switchDomain.getDefaultCacheMillis();
         
         // now try to enable the push
         try {
             if (udpPort > 0 && pushService.canEnablePush(agent)) {
-                
-                pushService
-                        .addClient(namespaceId, serviceName, clusters, agent, new InetSocketAddress(clientIP, udpPort),
-                                pushDataSource, tid, app);
+                // 服务发现时客户端会订阅服务端的服务变动，这里会把客户端信息保存到PushService的clientMap属性中
+                // 其实就是给服务端传递客户端接收udp请求的端口，当服务端注册服务实例后会给客户端发udp请求通知客户端服务变动信息
+                pushService.addClient(namespaceId, serviceName, clusters, agent,
+                    new InetSocketAddress(clientIP, udpPort), pushDataSource, tid, app);
                 cacheMillis = switchDomain.getPushCacheMillis(serviceName);
             }
         } catch (Exception e) {
@@ -690,7 +697,7 @@ public class InstanceController {
         checkIfDisabled(service);
         
         List<Instance> srvedIPs;
-        
+        //返回的就是注册服务时注册的属性，Service#Cluster#ephemeralInstances
         srvedIPs = service.srvIPs(Arrays.asList(StringUtils.split(clusters, ",")));
         
         // filter ips using selector:

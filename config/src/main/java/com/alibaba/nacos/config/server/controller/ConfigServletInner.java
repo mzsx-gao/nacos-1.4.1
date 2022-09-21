@@ -179,11 +179,13 @@ public class ConfigServletInner {
                             response.setHeader("Vipserver-Tag",
                                     URLEncoder.encode(autoTag, StandardCharsets.UTF_8.displayName()));
                         } else {
-                            md5 = cacheItem.getMd5();
+                            md5 = cacheItem.getMd5();//用来比较文件有没有变更
                             lastModified = cacheItem.getLastModifiedTs();
                             if (PropertyUtil.isDirectRead()) {
                                 configInfoBase = persistService.findConfigInfo(dataId, group, tenant);
                             } else {
+                                //这里不是去查mysql，而是去查本地磁盘的缓存，所有直接修改Mysql配置是不行的。修改配置需要
+                                //发布ConfigDataChangeEvent事件，触发本地文件和内存的更新
                                 file = DiskUtil.targetFile(dataId, group, tenant);
                             }
                             if (configInfoBase == null && fileNotExist(file)) {

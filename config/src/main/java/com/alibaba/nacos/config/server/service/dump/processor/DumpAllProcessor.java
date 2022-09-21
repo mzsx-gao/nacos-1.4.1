@@ -45,7 +45,8 @@ public class DumpAllProcessor implements NacosTaskProcessor {
         this.dumpService = dumpService;
         this.persistService = dumpService.getPersistService();
     }
-    
+
+    //将数据库中的所有信息查询出来写到服务器的磁盘中
     @Override
     public boolean process(NacosTask task) {
         long currentMaxId = persistService.findConfigMaxId();
@@ -68,7 +69,7 @@ public class DumpAllProcessor implements NacosTaskProcessor {
                     if (cf.getDataId().equals(SwitchService.SWITCH_META_DATAID)) {
                         SwitchService.load(cf.getContent());
                     }
-                    //写入磁盘
+                    //写入磁盘,并发布LocalDataChangeEvent事件
                     boolean result = ConfigCacheService
                             .dump(cf.getDataId(), cf.getGroup(), cf.getTenant(), cf.getContent(), cf.getLastModified(),
                                     cf.getType());

@@ -76,6 +76,7 @@ public class DistroMapper extends MemberChangeListener {
     
     /**
      * Judge whether current server is responsible for input service.
+     * 用服务名称hash后对机器数取模，选择集群里的一台机器执行任务
      *
      * @param serviceName service name
      * @return true if input service is response, otherwise false
@@ -97,7 +98,7 @@ public class DistroMapper extends MemberChangeListener {
         if (lastIndex < 0 || index < 0) {
             return true;
         }
-        
+        //这里相当于算出用哪台机器执行任务的下标,如果正好是本机地址则执行，否则不执行
         int target = distroHash(serviceName) % servers.size();
         return target >= index && target <= lastIndex;
     }

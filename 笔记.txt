@@ -2,7 +2,7 @@
 1.打包
 mvn -Prelease-nacos -Dmaven.test.skip=true clean install -U
 2.运行
-cd distribution/target/nacos-server-1.3.0/nacos/bin/
+cd distribution/target/nacos-server-1.4.1/nacos/bin/
 sh startup.sh -m standalone
 
 源码启动：

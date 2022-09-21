@@ -76,6 +76,7 @@ public class ServerListManager extends MemberChangeListener {
     
     @PostConstruct
     public void init() {
+        //集群节点状态同步任务
         GlobalExecutor.registerServerStatusReporter(new ServerStatusReporter(), 2000);
         GlobalExecutor.registerServerInfoUpdater(new ServerInfoUpdater());
     }
@@ -185,7 +186,14 @@ public class ServerListManager extends MemberChangeListener {
             }
         }
     }
-    
+
+    /**
+     * 集群节点之间相互同步节点状态，告诉其它节点我还活着。如果有节点宕机了，集群其他节点会感知到并更新集群节点的状态
+     * 这个会影响心跳任务机器选择的计算
+     *
+     * 单单有心跳了还不行,我们还需要一个定时任务去维护这个心跳,把一段时间没有心跳的节点剔除掉
+     * ServerMemberManager#MemberInfoReportTask
+     */
     private class ServerStatusReporter implements Runnable {
         
         @Override
@@ -213,8 +221,7 @@ public class ServerListManager extends MemberChangeListener {
                     return;
                 }
                 
-                if (allServers.size() > 0 && !EnvUtil.getLocalAddress()
-                        .contains(IPUtil.localHostIP())) {
+                if (allServers.size() > 0 && !EnvUtil.getLocalAddress().contains(IPUtil.localHostIP())) {
                     for (Member server : allServers) {
                         if (Objects.equals(server.getAddress(), EnvUtil.getLocalAddress())) {
                             continue;
@@ -231,7 +238,7 @@ public class ServerListManager extends MemberChangeListener {
                         
                         Message msg = new Message();
                         msg.setData(status);
-                        
+                        //GET /v1/ns/operator/server/status
                         synchronizer.send(server.getAddress(), msg);
                     }
                 }
